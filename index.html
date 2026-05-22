@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Paste a food receipt or order, get rough calorie and macro guesses with jokes and sane tips."
+    />
+    <title>Receipt Roast — macro estimates & seasoning</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to main</a>
+    <div class="wrap">
+      <header class="hero">
+        <h1>Receipt Roast</h1>
+        <p class="tag">Heuristic macros • local database • maximal flavor</p>
+      </header>
+
+      <main id="main">
+        <section class="panel" aria-labelledby="lbl-paste">
+          <h2 id="lbl-paste">1. Paste receipt or order text</h2>
+          <label class="mono" for="receipt-input">Restaurant / delivery lines (prices optional)</label>
+          <textarea
+            id="receipt-input"
+            class="receipt-input"
+            placeholder="CHEESEBURGER        $9.59&#10;2x Fries              $7.80&#10;Large Coke           $3.29"
+          ></textarea>
+          <div class="toolbar">
+            <button type="button" class="secondary" id="btn-parse">Parse lines into items</button>
+            <span class="status-msg" id="parse-status"></span>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="lbl-items">
+          <h2 id="lbl-items">2. Edit items (name, qty, price)</h2>
+          <p class="status-msg" style="margin: 0 0 0.5rem">
+            Add rows freely. Quantities multiply macro estimates when you hit <strong>Estimate macros</strong>.
+          </p>
+          <div class="toolbar">
+            <button type="button" class="ghost" id="btn-add-row">+ Add blank row</button>
+            <button type="button" class="ghost" id="btn-clear-rows">Clear all rows</button>
+          </div>
+          <div class="items-table-wrap">
+            <table class="items" aria-describedby="lbl-items">
+              <thead>
+                <tr>
+                  <th scope="col">Item</th>
+                  <th scope="col">Qty</th>
+                  <th scope="col">Price</th>
+                  <th scope="col">Est. kcal</th>
+                  <th scope="col">P/C/F</th>
+                  <th scope="col">Confidence</th>
+                  <th scope="col">Match</th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody id="items-body"></tbody>
+            </table>
+          </div>
+          <div class="toolbar">
+            <button type="button" class="primary" id="btn-estimate" disabled>Estimate macros</button>
+            <span class="status-msg" id="load-status"></span>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="lbl-results">
+          <h2 id="lbl-results">3. Totals & verdict</h2>
+          <div id="results-empty" class="status-msg">
+            Load the food DB and estimate at least one item to see totals.
+          </div>
+          <div id="results-block" class="hidden">
+            <div class="totals" id="totals-line"></div>
+            <p class="status-msg" id="overall-conf"></p>
+            <blockquote class="verdict" id="verdict-roast"></blockquote>
+            <div class="verdict-serious" id="verdict-serious"></div>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="lbl-history">
+          <h2 id="lbl-history">Recent receipts (stored locally)</h2>
+          <p class="status-msg" style="margin: 0 0 0.5rem">Last five estimates saved in this browser only.</p>
+          <ul class="history-list" id="history-list"></ul>
+          <button type="button" class="ghost" id="btn-clear-history">Clear saved history</button>
+        </section>
+      </main>
+
+      <footer class="site">
+        <p>
+          Offline-friendly after load ·
+          <a href="./tests.html">Self-tests</a> · Rough guesses, not dietary advice ·
+          <abbr title="Not medical advice">NMA</abbr>
+        </p>
+      </footer>
+    </div>
+
+    <script src="./engine.js"></script>
+    <script src="./app.js" defer></script>
+  </body>
+</html>

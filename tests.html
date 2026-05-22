@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Receipt Roast — self-tests</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      .test-run {
+        font-family: ui-monospace, monospace;
+        font-size: 0.85rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .pass {
+        color: var(--ok, #20bf6b);
+      }
+      .fail {
+        color: var(--danger, #eb3b5a);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="hero">
+        <h1>Receipt Roast tests</h1>
+        <p class="tag">Open over HTTP with <code>index.html</code> (same-origin fetch)</p>
+      </header>
+      <section class="panel">
+        <h2>Results</h2>
+        <p class="status-msg" id="env"></p>
+        <pre class="test-run" id="out" aria-live="polite"></pre>
+      </section>
+      <p class="status-msg"><a href="./index.html">← Back to app</a></p>
+    </div>
+    <script src="./engine.js"></script>
+    <script>
+(function () {
+  const E = window.ReceiptRoastEngine;
+  const outEl = document.getElementById("out");
+  const envEl = document.getElementById("env");
+
+  /** @type {string[]} */
+  const lines = [];
+  let failures = 0;
+
+  function log(msg, ok) {
+    lines.push((ok !== false ? "✓ " : "✗ ") + msg);
+    if (ok === false) failures++;
+  }
+
+  async function loadDb() {
+    const res = await fetch("./foods.json", { cache: "no-store" });
+    if (!res.ok) throw new Error("foods.json HTTP " + res.status);
+    const db = await res.json();
+    if (db.$schema_hint) delete db.$schema_hint;
+    return db;
+  }
+
+  function totalsForReceipt(text, db) {
+    const parsed = E.parseReceiptText(text);
+    let sum = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    for (const row of parsed) {
+      const est = E.estimateLineItem(row.name, Number(row.qty) || 1, db);
+      sum.calories += est.macros.calories;
+      sum.protein += est.macros.protein;
+      sum.carbs += est.macros.carbs;
+      sum.fat += est.macros.fat;
+    }
+    return { parsed, sum };
+  }
+
+  const samples = [
+    {
+      id: "Diner combo",
+      text:
+        "ORDER #8842\\nCheeseburger         $11.49\\n2x French Fries      $9.98\\nLarge Coke           $3.29\\nTOTAL                $28.76",
+      minLines: 3,
+      minKcal: 900,
+      maxKcal: 3400,
+    },
+    {
+      id: "Pizza pickup",
+      text: "Slice pepperoni\\nGarden salad\\n$6.49      $12.31",
+      minLines: 2,
+      minKcal: 400,
+      maxKcal: 1200,
+    },
+    {
+      id: "Taco kit",
+      text: "Burrito Meal\\nChicken Tacos (2)\\nNachos deluxe",
+      minLines: 3,
+      minKcal: 700,
+      maxKcal: 3200,
+    },
+    {
+      id: "No items (noise only)",
+      text: "Subtotal\\nTax\\nTotal\\nThanks you",
+      minLines: 0,
+      minKcal: 0,
+      maxKcal: 0,
+    },
+    {
+      id: "Breakfast swing",
+      text: "2x Pancakes Plate      $22.98\\nBacon side             $4.59\\nLatte grande           $5.89",
+      minLines: 3,
+      minKcal: 700,
+      maxKcal: 2800,
+    },
+  ];
+
+  function runAssertions(db) {
+    log(
+      `parse diner: "${samples[0].id}" → ≥${samples[0].minLines} items`,
+      E.parseReceiptText(samples[0].text).length >= samples[0].minLines
+    );
+
+    for (const s of samples) {
+      const { parsed, sum } = totalsForReceipt(s.text, db);
+      const okCount = parsed.length >= s.minLines;
+      log(`[${s.id}] parsed lines ≥ ${s.minLines} (got ${parsed.length})`, okCount);
+      const okKcal = sum.calories >= s.minKcal && sum.calories <= s.maxKcal;
+      log(
+        `[${s.id}] calories in [${s.minKcal}, ${s.maxKcal}] (got ~${Math.round(sum.calories)})`,
+        okKcal
+      );
+    }
+
+    const roll = E.rollupConfidence([
+      { macros: { calories: 1 }, confidence: "High" },
+      { macros: { calories: 1 }, confidence: "High" },
+    ]);
+    log("rollup two High → overall High-ish", roll === "High");
+
+    const verdict = E.buildVerdicts({ calories: 1200, protein: 20, carbs: 130, fat: 50 }, 8);
+    log("verdict has roast + advice", !!(verdict.roast && verdict.serious));
+  }
+
+  (async () => {
+    try {
+      const db = await loadDb();
+      envEl.textContent = "foods.json OK — tests running.";
+      runAssertions(db);
+    } catch (e) {
+      envEl.innerHTML =
+        '<span style="color:var(--danger,#eb3b5a)">Cannot fetch foods.json. Run: <code>python3 -m http.server</code> in receipt-roast, then reopen this URL.</span>';
+      log(String(e.message || e), false);
+      failures++;
+    }
+    lines.push("", failures === 0 ? "All checks passed." : failures + " check(s) failed.");
+    outEl.textContent = lines.join("\\n");
+    outEl.style.color =
+      failures === 0 ? "var(--ok, #20bf6b)" : "var(--danger, #eb3b5a)";
+  })();
+})();
+    </script>
+  </body>
+</html>
